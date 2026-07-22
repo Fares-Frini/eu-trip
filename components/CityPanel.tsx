@@ -1,7 +1,7 @@
 "use client";
 
 import { X, MapPin } from "lucide-react";
-import type { CityStop } from "@/data/trip";
+import { tripStopsSorted, type CityStop } from "@/data/trip";
 import { MODE_ICONS, MODE_LABELS } from "@/lib/modes";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,8 @@ export default function CityPanel({
   const hasDetails =
     details &&
     (details.description || details.highlights?.length || details.activities?.length || details.notes);
-  const ModeIcon = city?.arriveBy ? MODE_ICONS[city.arriveBy] : null;
+  const ArriveIcon = city?.arriveBy ? MODE_ICONS[city.arriveBy] : null;
+  const ExploreIcon = city?.exploreBy ? MODE_ICONS[city.exploreBy] : null;
 
   return (
     <div
@@ -35,7 +36,7 @@ export default function CityPanel({
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <MapPin className="size-3.5" />
-                Stop {city.order + 1} of 13
+                Stop {city.order + 1} of {tripStopsSorted.length}
               </div>
               <h2 className="mt-0.5 truncate text-xl font-bold tracking-tight">{city.name}</h2>
               <p className="text-sm text-muted-foreground">{city.country}</p>
@@ -57,10 +58,16 @@ export default function CityPanel({
                 {city.days} day{city.days > 1 ? "s" : ""} planned
               </Badge>
             )}
-            {ModeIcon && city.arriveBy && (
+            {ArriveIcon && city.arriveBy && (
               <Badge variant="outline" className="gap-1">
-                <ModeIcon className="size-3" />
+                <ArriveIcon className="size-3" />
                 {MODE_LABELS[city.arriveBy]}
+              </Badge>
+            )}
+            {ExploreIcon && city.exploreBy && (
+              <Badge variant="outline" className="gap-1">
+                <ExploreIcon className="size-3" />
+                {MODE_LABELS[city.exploreBy]}
               </Badge>
             )}
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvent } from "react-leaflet";
@@ -8,8 +8,47 @@ import { useTheme } from "next-themes";
 import { Maximize2 } from "lucide-react";
 import { tripStopsSorted, type CityStop, type TransportMode } from "@/data/trip";
 import { MODE_COLORS, MODE_DASH, MODE_LABELS } from "@/lib/modes";
+import { fetchRoadRoute, type LatLngPair } from "@/lib/routing";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+
+interface TripSegment {
+  key: string;
+  from: CityStop;
+  to: CityStop;
+  mode: TransportMode;
+  positions: LatLngPair[];
+}
+
+/**
+ * Bends "car"/"train" legs onto real road geometry (via OSRM) instead of a
+ * straight line. Ferry/plane legs stay geodesic-straight since there's no
+ * road to follow. Falls back silently to the straight line if the routing
+ * request fails.
+ */
+function useRoadRoutes(segments: TripSegment[]) {
+  const [roaded, setRoaded] = useState<Record<string, LatLngPair[]>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      for (const seg of segments) {
+        if (seg.mode !== "car" && seg.mode !== "train") continue;
+        const route = await fetchRoadRoute(seg.from, seg.to);
+        if (cancelled || !route) continue;
+        setRoaded((prev) => ({ ...prev, [seg.key]: route }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return roaded;
+}
 
 export interface FocusRequest {
   id: string;
@@ -89,11 +128,14 @@ export default function TripMap({
   const palette = MODE_COLORS[resolvedTheme === "dark" ? "dark" : "light"];
 
   const segments = useMemo(() => {
-    const result: { positions: [number, number][]; mode: TransportMode }[] = [];
+    const result: TripSegment[] = [];
     for (let i = 1; i < tripStopsSorted.length; i++) {
       const from = tripStopsSorted[i - 1];
       const to = tripStopsSorted[i];
       result.push({
+        key: `${from.id}-${to.id}`,
+        from,
+        to,
         positions: [
           [from.lat, from.lng],
           [to.lat, to.lng],
@@ -103,6 +145,8 @@ export default function TripMap({
     }
     return result;
   }, []);
+
+  const roadRoutes = useRoadRoutes(segments);
 
   const bounds = useMemo(
     () => L.latLngBounds(tripStopsSorted.map((s) => [s.lat, s.lng] as [number, number])),
@@ -144,10 +188,10 @@ export default function TripMap({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {segments.map((seg, i) => (
+        {segments.map((seg) => (
           <Polyline
-            key={`casing-${i}`}
-            positions={seg.positions}
+            key={`casing-${seg.key}`}
+            positions={roadRoutes[seg.key] ?? seg.positions}
             pathOptions={{
               color: resolvedTheme === "dark" ? "#0b1220" : "#ffffff",
               weight: 6,
@@ -156,10 +200,10 @@ export default function TripMap({
             }}
           />
         ))}
-        {segments.map((seg, i) => (
+        {segments.map((seg) => (
           <Polyline
-            key={`line-${i}`}
-            positions={seg.positions}
+            key={`line-${seg.key}`}
+            positions={roadRoutes[seg.key] ?? seg.positions}
             pathOptions={{
               color: palette[seg.mode],
               weight: 3.5,
