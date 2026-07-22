@@ -3,14 +3,151 @@
 import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap, useMapEvent } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMap, useMapEvent } from "react-leaflet";
 import { useTheme } from "next-themes";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, ImageOff } from "lucide-react";
 import { tripStopsSorted, type CityStop, type TransportMode } from "@/data/trip";
+import { getPoisForCity, type PointOfInterest } from "@/data/poi";
+import type { GeocodeResult } from "@/lib/geocode";
 import { MODE_COLORS, MODE_DASH, MODE_LABELS } from "@/lib/modes";
 import { fetchRoadRoute, getSeaRoute, type LatLngPair } from "@/lib/routing";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+
+const searchPinIcon = L.divIcon({
+  html: `<div class="search-pin"></div>`,
+  className: "search-pin-icon",
+  iconSize: [26, 26],
+  iconAnchor: [13, 24],
+  popupAnchor: [0, -22],
+});
+
+const POI_CARD_WIDTH = 132;
+const POI_CARD_HEIGHT = 98;
+const POI_CARD_GAP = 8;
+
+function buildPoiIcon(isActive: boolean) {
+  return L.divIcon({
+    html: `<div class="poi-marker${isActive ? " poi-marker--active" : ""}"></div>`,
+    className: "poi-marker-icon",
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+  });
+}
+const poiIcon = buildPoiIcon(false);
+const poiIconActive = buildPoiIcon(true);
+
+function PoiCard({ poi, onSelect }: { poi: PointOfInterest; onSelect: () => void }) {
+  return (
+    <div
+      className="poi-card"
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+    >
+      {poi.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={poi.image} alt={poi.name} loading="lazy" className="poi-card__image" />
+      ) : (
+        <div className="poi-card__image poi-card__image--placeholder">
+          <ImageOff className="size-4" />
+        </div>
+      )}
+      <div className="poi-card__body">
+        <span className="poi-card__name">{poi.name}</span>
+        {poi.price && <span className="poi-card__price">{poi.price}</span>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Renders one city's POI pins + floating cards, spreading cards that would
+ * otherwise overlap (when their real-world points are close together at the
+ * current zoom) into vertical stacks above their pin instead of piling up.
+ */
+function PoiLayer({
+  pois,
+  activePoiId,
+  onSelect,
+}: {
+  pois: PointOfInterest[];
+  activePoiId: string | null;
+  onSelect: (poi: PointOfInterest) => void;
+}) {
+  const map = useMap();
+  const [levels, setLevels] = useState<Record<string, number>>({});
+
+  function recompute() {
+    if (pois.length === 0) {
+      setLevels({});
+      return;
+    }
+    const points = pois.map((poi) => ({
+      id: poi.id,
+      pt: map.latLngToContainerPoint([poi.lat, poi.lng]),
+    }));
+    points.sort((a, b) => a.pt.x - b.pt.x);
+
+    const placed: { x1: number; x2: number; level: number }[] = [];
+    const next: Record<string, number> = {};
+    for (const { id, pt } of points) {
+      const x1 = pt.x - POI_CARD_WIDTH / 2;
+      const x2 = pt.x + POI_CARD_WIDTH / 2;
+      let level = 0;
+      while (placed.some((p) => p.level === level && p.x1 < x2 && p.x2 > x1)) {
+        level++;
+      }
+      placed.push({ x1, x2, level });
+      next[id] = level;
+    }
+    setLevels(next);
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs layout state with the map's current pixel geometry, not React state
+    recompute();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pois]);
+
+  useMapEvent("zoomend", recompute);
+  useMapEvent("moveend", recompute);
+
+  return (
+    <>
+      {pois.map((poi) => {
+        const level = levels[poi.id] ?? 0;
+        return (
+          <Marker
+            key={poi.id}
+            position={[poi.lat, poi.lng]}
+            icon={activePoiId === poi.id ? poiIconActive : poiIcon}
+            eventHandlers={{ click: () => onSelect(poi) }}
+          >
+            <Tooltip
+              permanent
+              direction="top"
+              offset={[0, -6 - level * (POI_CARD_HEIGHT + POI_CARD_GAP)]}
+              opacity={1}
+              className="poi-tooltip"
+            >
+              <PoiCard poi={poi} onSelect={() => onSelect(poi)} />
+            </Tooltip>
+          </Marker>
+        );
+      })}
+    </>
+  );
+}
 
 interface TripSegment {
   key: string;
@@ -97,13 +234,23 @@ function FlyToCity({ request, stops }: { request: FocusRequest | null; stops: Ci
   return null;
 }
 
+function FlyToSearchResult({ result }: { result: GeocodeResult | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!result) return;
+    map.flyTo([result.lat, result.lng], 15, { duration: 1.1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+  return null;
+}
+
 function FitBoundsControl({ bounds }: { bounds: L.LatLngBounds }) {
   const map = useMap();
   return (
     <Button
       size="icon"
       variant="secondary"
-      className="absolute right-3 top-3 z-[1000] shadow-md"
+      className="absolute top-16 left-3 z-[999] shadow-md"
       onClick={() => map.flyToBounds(bounds, { padding: [60, 60], duration: 0.9 })}
       title="Fit whole trip"
     >
@@ -120,10 +267,16 @@ export default function TripMap({
   activeCityId,
   onActiveCityChange,
   focusRequest,
+  activePoiId,
+  onSelectPoi,
+  searchResult,
 }: {
   activeCityId: string | null;
   onActiveCityChange: (city: CityStop | null) => void;
   focusRequest: FocusRequest | null;
+  activePoiId: string | null;
+  onSelectPoi: (poi: PointOfInterest) => void;
+  searchResult: GeocodeResult | null;
 }) {
   const { resolvedTheme } = useTheme();
   const palette = MODE_COLORS[resolvedTheme === "dark" ? "dark" : "light"];
@@ -150,6 +303,11 @@ export default function TripMap({
   }, []);
 
   const roadRoutes = useRoadRoutes(segments);
+
+  const activeCityPois = useMemo(
+    () => (activeCityId ? getPoisForCity(activeCityId) : []),
+    [activeCityId]
+  );
 
   const bounds = useMemo(
     () => L.latLngBounds(tripStopsSorted.map((s) => [s.lat, s.lng] as [number, number])),
@@ -243,8 +401,22 @@ export default function TripMap({
           );
         })}
 
+        {activeCityPois.length > 0 && (
+          <PoiLayer pois={activeCityPois} activePoiId={activePoiId} onSelect={onSelectPoi} />
+        )}
+
+        {searchResult && (
+          <Marker position={[searchResult.lat, searchResult.lng]} icon={searchPinIcon}>
+            <Popup>
+              <div className="font-semibold text-foreground">{searchResult.name}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{searchResult.displayName}</div>
+            </Popup>
+          </Marker>
+        )}
+
         <ZoomWatcher onChange={handleViewportChange} />
         <FlyToCity request={focusRequest} stops={tripStopsSorted} />
+        <FlyToSearchResult result={searchResult} />
         <FitBoundsControl bounds={bounds} />
       </MapContainer>
 

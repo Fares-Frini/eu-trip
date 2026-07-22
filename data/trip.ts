@@ -77,7 +77,12 @@ export const tripStops: CityStop[] = [
     exploreBy: "foot",
     summary: "2 days exploring Rome",
     detailZoom: 11,
-    details: {},
+    details: {
+      description:
+        "Ancient ruins, Renaissance piazzas, and Baroque fountains — the heart of the itinerary.",
+      notes:
+        "Estimated sightseeing cost: €19 (EU students 18–25) / €56 (standard), excluding transport & food. The trip guide suggests 3 days here — currently planned for 2.",
+    },
   },
   {
     id: "florence",
@@ -86,11 +91,15 @@ export const tripStops: CityStop[] = [
     lat: 43.7696,
     lng: 11.2558,
     order: 4,
+    days: 2,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Renaissance art & architecture",
     detailZoom: 11,
-    details: {},
+    details: {
+      description: "Renaissance art and architecture centered on the Duomo and the Arno.",
+      notes: "Estimated sightseeing cost: €11 (student) / €19 (standard).",
+    },
   },
   {
     id: "bologna",
@@ -99,11 +108,16 @@ export const tripStops: CityStop[] = [
     lat: 44.4949,
     lng: 11.3426,
     order: 5,
+    days: 1,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Food capital of Italy",
     detailZoom: 11,
-    details: {},
+    details: {
+      description:
+        "A compact one-day stop for porticoes, towers, and Italy's oldest university quarter.",
+      notes: "Estimated sightseeing cost: ≈€3.",
+    },
   },
   {
     id: "venice",
@@ -112,11 +126,15 @@ export const tripStops: CityStop[] = [
     lat: 45.4408,
     lng: 12.3155,
     order: 6,
+    days: 2,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Canals and history",
     detailZoom: 11,
-    details: {},
+    details: {
+      description: "Canals, basilicas, and glassblowing islands across the lagoon.",
+      notes: "Estimated sightseeing cost: ≈€36, plus €19 round-trip boat to Murano & Burano.",
+    },
   },
   {
     id: "milano",
@@ -125,11 +143,15 @@ export const tripStops: CityStop[] = [
     lat: 45.4642,
     lng: 9.19,
     order: 7,
+    days: 2,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Fashion & design capital",
     detailZoom: 11,
-    details: {},
+    details: {
+      description: "Fashion, opera, and Gothic spires in Italy's design capital.",
+      notes: "Estimated sightseeing cost: ≈€20.5.",
+    },
   },
   {
     id: "lugano",
@@ -138,11 +160,17 @@ export const tripStops: CityStop[] = [
     lat: 46.0037,
     lng: 8.9511,
     order: 8,
+    days: 2,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Swiss lakeside city",
     detailZoom: 11,
-    details: {},
+    details: {
+      description:
+        "Lakeside old town with mountain viewpoints and a day trip to Bellinzona's castles.",
+      notes:
+        "Estimated activities: ≈45.5 CHF (student) / 71.5 CHF (standard). Accommodation ≈50–60 CHF/person/night — budget ≈105 CHF/person total for 1 night + activities.",
+    },
   },
   {
     id: "frankfurt",
@@ -151,11 +179,15 @@ export const tripStops: CityStop[] = [
     lat: 50.1109,
     lng: 8.6821,
     order: 9,
+    days: 2,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Financial hub of Germany",
     detailZoom: 11,
-    details: {},
+    details: {
+      description: "Skyline views, a rebuilt old town, and a cruise along the Main.",
+      notes: "Estimated sightseeing cost: ≈€42 (student) / €49 (standard).",
+    },
   },
   {
     id: "brussels",

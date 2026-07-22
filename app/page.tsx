@@ -4,8 +4,12 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { Compass, ListTree, Sun, Route } from "lucide-react";
 import { tripStats, type CityStop } from "@/data/trip";
+import type { PointOfInterest } from "@/data/poi";
+import type { GeocodeResult } from "@/lib/geocode";
 import TripSidebar from "@/components/TripSidebar";
 import CityPanel from "@/components/CityPanel";
+import PoiPanel from "@/components/PoiPanel";
+import SearchBar from "@/components/SearchBar";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -23,13 +27,24 @@ const TripMap = dynamic(() => import("@/components/TripMap"), {
 
 export default function Home() {
   const [activeCity, setActiveCity] = useState<CityStop | null>(null);
+  const [activePoi, setActivePoi] = useState<PointOfInterest | null>(null);
+  const [searchResult, setSearchResult] = useState<GeocodeResult | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   function handleSelect(stop: CityStop) {
     setActiveCity(stop);
+    setActivePoi(null);
+    setSearchResult(null);
     setFocusRequest({ id: stop.id, nonce: Date.now() });
     setMobileNavOpen(false);
+  }
+
+  function handleActiveCityChange(city: CityStop | null) {
+    if (city?.id !== activeCity?.id) {
+      setActivePoi(null);
+    }
+    setActiveCity(city);
   }
 
   return (
@@ -99,10 +114,18 @@ export default function Home() {
         <main className="relative min-w-0 flex-1">
           <TripMap
             activeCityId={activeCity?.id ?? null}
-            onActiveCityChange={setActiveCity}
+            onActiveCityChange={handleActiveCityChange}
             focusRequest={focusRequest}
+            activePoiId={activePoi?.id ?? null}
+            onSelectPoi={setActivePoi}
+            searchResult={searchResult}
           />
-          <CityPanel city={activeCity} onClose={() => setActiveCity(null)} />
+          <SearchBar onSelect={setSearchResult} onClear={() => setSearchResult(null)} />
+          {activePoi ? (
+            <PoiPanel poi={activePoi} onBack={() => setActivePoi(null)} />
+          ) : (
+            <CityPanel city={activeCity} onClose={() => setActiveCity(null)} />
+          )}
         </main>
       </div>
     </div>
