@@ -1,3 +1,5 @@
+import { seaRoute } from "searoute-ts";
+
 export type LatLngPair = [number, number];
 
 /**
@@ -16,6 +18,28 @@ export async function fetchRoadRoute(
     if (!res.ok) return null;
     const data = await res.json();
     const coords = data?.routes?.[0]?.geometry?.coordinates as [number, number][] | undefined;
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    return coords.map(([lng, lat]) => [lat, lng] as LatLngPair);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Computes a realistic shipping-lane route between two ports using the
+ * bundled Eurostat maritime network (offline, synchronous — no network
+ * request). Falls back to null (caller draws a straight line) if either
+ * point can't be snapped to the network (e.g. a landlocked coordinate).
+ */
+export function getSeaRoute(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): LatLngPair[] | null {
+  try {
+    const feature = seaRoute([from.lng, from.lat], [to.lng, to.lat], {
+      appendOriginDestination: true,
+    });
+    const coords = feature?.geometry?.coordinates as [number, number][] | undefined;
     if (!Array.isArray(coords) || coords.length < 2) return null;
     return coords.map(([lng, lat]) => [lat, lng] as LatLngPair);
   } catch {

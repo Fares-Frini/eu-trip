@@ -8,7 +8,7 @@ import { useTheme } from "next-themes";
 import { Maximize2 } from "lucide-react";
 import { tripStopsSorted, type CityStop, type TransportMode } from "@/data/trip";
 import { MODE_COLORS, MODE_DASH, MODE_LABELS } from "@/lib/modes";
-import { fetchRoadRoute, type LatLngPair } from "@/lib/routing";
+import { fetchRoadRoute, getSeaRoute, type LatLngPair } from "@/lib/routing";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -22,9 +22,10 @@ interface TripSegment {
 
 /**
  * Bends "car"/"train" legs onto real road geometry (via OSRM) instead of a
- * straight line. Ferry/plane legs stay geodesic-straight since there's no
- * road to follow. Falls back silently to the straight line if the routing
- * request fails.
+ * straight line. Ferry legs are already bent onto shipping lanes up-front
+ * (see `segments`, computed offline via searoute-ts). Plane legs stay
+ * geodesic-straight since there's no route to follow. Falls back silently
+ * to the straight line if the OSRM request fails.
  */
 function useRoadRoutes(segments: TripSegment[]) {
   const [roaded, setRoaded] = useState<Record<string, LatLngPair[]>>({});
@@ -132,15 +133,17 @@ export default function TripMap({
     for (let i = 1; i < tripStopsSorted.length; i++) {
       const from = tripStopsSorted[i - 1];
       const to = tripStopsSorted[i];
+      const mode = to.arriveBy ?? "car";
+      const straight: LatLngPair[] = [
+        [from.lat, from.lng],
+        [to.lat, to.lng],
+      ];
       result.push({
         key: `${from.id}-${to.id}`,
         from,
         to,
-        positions: [
-          [from.lat, from.lng],
-          [to.lat, to.lng],
-        ],
-        mode: to.arriveBy ?? "car",
+        positions: mode === "ferry" ? getSeaRoute(from, to) ?? straight : straight,
+        mode,
       });
     }
     return result;
