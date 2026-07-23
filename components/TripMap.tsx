@@ -3,16 +3,88 @@
 import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, Polyline, Popup, Tooltip, useMap, useMapEvent } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Polyline,
+  Popup,
+  Tooltip,
+  GeoJSON,
+  useMap,
+  useMapEvent,
+} from "react-leaflet";
 import { useTheme } from "next-themes";
-import { Maximize2, ImageOff } from "lucide-react";
+import { Maximize2 } from "lucide-react";
+import type { FeatureCollection } from "geojson";
 import { tripStopsSorted, type CityStop, type TransportMode } from "@/data/trip";
 import { getPoisForCity, type PointOfInterest } from "@/data/poi";
 import type { GeocodeResult } from "@/lib/geocode";
 import { MODE_COLORS, MODE_DASH, MODE_LABELS } from "@/lib/modes";
 import { fetchRoadRoute, getSeaRoute, type LatLngPair } from "@/lib/routing";
+import { MAP_STYLES, resolveTileUrl, type MapStyleId } from "@/lib/mapStyles";
+import { fetchCountryBorder } from "@/lib/countryBorders";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import MapStyleSwitcher from "@/components/MapStyleSwitcher";
+
+/** Below this zoom (i.e. zoomed way out), country borders are highlighted */
+const COUNTRY_BORDER_MAX_ZOOM = 6;
+const COUNTRY_BORDER_COLOR = { light: "oklch(0.76 0.15 75)", dark: "oklch(0.8 0.15 80)" };
+
+function CountryBordersLayer({ countries }: { countries: string[] }) {
+  const map = useMap();
+  const { resolvedTheme } = useTheme();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  const [borders, setBorders] = useState<Record<string, FeatureCollection | null>>({});
+
+  useMapEvent("zoom", () => setZoom(map.getZoom()));
+
+  const visible = zoom <= COUNTRY_BORDER_MAX_ZOOM;
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    for (const country of countries) {
+      if (country in borders) continue;
+      fetchCountryBorder(country).then((data) => {
+        if (!cancelled) setBorders((prev) => ({ ...prev, [country]: data }));
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, countries]);
+
+  if (!visible) return null;
+
+  const color = COUNTRY_BORDER_COLOR[resolvedTheme === "dark" ? "dark" : "light"];
+
+  return (
+    <>
+      {countries.map((country) => {
+        const data = borders[country];
+        if (!data) return null;
+        return (
+          <GeoJSON
+            key={country}
+            data={data}
+            interactive={false}
+            pathOptions={{
+              color,
+              weight: 1.5,
+              opacity: 0.6,
+              fillColor: color,
+              fillOpacity: 0.04,
+              dashArray: "4 4",
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 const searchPinIcon = L.divIcon({
   html: `<div class="search-pin"></div>`,
@@ -22,20 +94,40 @@ const searchPinIcon = L.divIcon({
   popupAnchor: [0, -22],
 });
 
-const POI_CARD_WIDTH = 132;
-const POI_CARD_HEIGHT = 98;
-const POI_CARD_GAP = 8;
+const POI_CARD_WIDTH = 120;
+const POI_CARD_HEIGHT = 22;
+const POI_CARD_GAP = 4;
+/** Below this zoom, POIs show as small colored dots */
+const POI_PIN_ZOOM = 13;
+/** Below this zoom, POI pins have no name card — above it, the card appears */
+const POI_LABEL_ZOOM = 14;
 
-function buildPoiIcon(isActive: boolean) {
+function isFreePoi(poi: PointOfInterest) {
+  return !poi.price || poi.price.toLowerCase().startsWith("free");
+}
+
+function buildPoiIcon(isActive: boolean, free: boolean, pinStyle: boolean) {
+  const color = free ? "var(--mode-foot)" : "var(--accent)";
+
+  if (pinStyle) {
+    const size = isActive ? 28 : 22;
+    return L.divIcon({
+      html: `<div class="poi-pin${isActive ? " poi-pin--active" : ""}" style="--marker-color:${color}"></div>`,
+      className: "poi-pin-icon",
+      iconSize: [size, size],
+      iconAnchor: [size / 2, Math.round(size * 0.92)],
+      popupAnchor: [0, -size],
+    });
+  }
+
+  const size = isActive ? 13 : 10;
   return L.divIcon({
-    html: `<div class="poi-marker${isActive ? " poi-marker--active" : ""}"></div>`,
+    html: `<div class="poi-marker${isActive ? " poi-marker--active" : ""}" style="--marker-color:${color}"></div>`,
     className: "poi-marker-icon",
-    iconSize: [10, 10],
-    iconAnchor: [5, 5],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
-const poiIcon = buildPoiIcon(false);
-const poiIconActive = buildPoiIcon(true);
 
 function PoiCard({ poi, onSelect }: { poi: PointOfInterest; onSelect: () => void }) {
   return (
@@ -54,18 +146,7 @@ function PoiCard({ poi, onSelect }: { poi: PointOfInterest; onSelect: () => void
         }
       }}
     >
-      {poi.image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={poi.image} alt={poi.name} loading="lazy" className="poi-card__image" />
-      ) : (
-        <div className="poi-card__image poi-card__image--placeholder">
-          <ImageOff className="size-4" />
-        </div>
-      )}
-      <div className="poi-card__body">
-        <span className="poi-card__name">{poi.name}</span>
-        {poi.price && <span className="poi-card__price">{poi.price}</span>}
-      </div>
+      <span className="poi-card__name">{poi.name}</span>
     </div>
   );
 }
@@ -86,6 +167,7 @@ function PoiLayer({
 }) {
   const map = useMap();
   const [levels, setLevels] = useState<Record<string, number>>({});
+  const [zoom, setZoom] = useState(() => map.getZoom());
 
   function recompute() {
     if (pois.length === 0) {
@@ -119,8 +201,14 @@ function PoiLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pois]);
 
-  useMapEvent("zoomend", recompute);
+  useMapEvent("zoomend", () => {
+    recompute();
+    setZoom(map.getZoom());
+  });
   useMapEvent("moveend", recompute);
+
+  const pinStyle = zoom >= POI_PIN_ZOOM;
+  const showLabels = zoom >= POI_LABEL_ZOOM;
 
   return (
     <>
@@ -130,18 +218,20 @@ function PoiLayer({
           <Marker
             key={poi.id}
             position={[poi.lat, poi.lng]}
-            icon={activePoiId === poi.id ? poiIconActive : poiIcon}
+            icon={buildPoiIcon(activePoiId === poi.id, isFreePoi(poi), pinStyle)}
             eventHandlers={{ click: () => onSelect(poi) }}
           >
-            <Tooltip
-              permanent
-              direction="top"
-              offset={[0, -6 - level * (POI_CARD_HEIGHT + POI_CARD_GAP)]}
-              opacity={1}
-              className="poi-tooltip"
-            >
-              <PoiCard poi={poi} onSelect={() => onSelect(poi)} />
-            </Tooltip>
+            {showLabels && (
+              <Tooltip
+                permanent
+                direction="top"
+                offset={[0, -6 - level * (POI_CARD_HEIGHT + POI_CARD_GAP)]}
+                opacity={1}
+                className="poi-tooltip"
+              >
+                <PoiCard poi={poi} onSelect={() => onSelect(poi)} />
+              </Tooltip>
+            )}
           </Marker>
         );
       })}
@@ -280,6 +370,8 @@ export default function TripMap({
 }) {
   const { resolvedTheme } = useTheme();
   const palette = MODE_COLORS[resolvedTheme === "dark" ? "dark" : "light"];
+  const [mapStyleId, setMapStyleId] = useState<MapStyleId>("voyager");
+  const mapStyle = MAP_STYLES.find((s) => s.id === mapStyleId) ?? MAP_STYLES[0];
 
   const segments = useMemo(() => {
     const result: TripSegment[] = [];
@@ -314,6 +406,11 @@ export default function TripMap({
     []
   );
 
+  const tripCountries = useMemo(
+    () => Array.from(new Set(tripStopsSorted.map((s) => s.country))),
+    []
+  );
+
   function handleViewportChange(zoom: number, center: L.LatLng) {
     if (zoom < 8) {
       onActiveCityChange(null);
@@ -343,11 +440,15 @@ export default function TripMap({
         className="h-full w-full"
         scrollWheelZoom
         zoomControl={false}
+        minZoom={4}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={mapStyle.attribution}
+          url={resolveTileUrl(mapStyle, resolvedTheme === "dark")}
+          detectRetina
         />
+
+        <CountryBordersLayer countries={tripCountries} />
 
         {segments.map((seg) => (
           <Polyline
@@ -421,6 +522,7 @@ export default function TripMap({
       </MapContainer>
 
       <Legend palette={palette} />
+      <MapStyleSwitcher value={mapStyleId} onChange={setMapStyleId} />
     </div>
   );
 }

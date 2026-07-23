@@ -24,6 +24,7 @@ export default function SearchBar({
   useEffect(() => {
     const trimmed = query.trim();
     if (selected || trimmed.length < 3) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets stale results when the query is cleared/too short
       setResults([]);
       setLoading(false);
       return;

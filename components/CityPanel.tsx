@@ -1,6 +1,6 @@
 "use client";
 
-import { X, MapPin } from "lucide-react";
+import { X, MapPin, CalendarClock, Wallet } from "lucide-react";
 import { tripStopsSorted, type CityStop } from "@/data/trip";
 import { MODE_ICONS, MODE_LABELS } from "@/lib/modes";
 import { Card } from "@/components/ui/card";
@@ -71,6 +71,45 @@ export default function CityPanel({
               </Badge>
             )}
           </div>
+
+          {(city.schedule || city.budget) && (
+            <div className="mt-3 flex flex-col gap-2 px-4">
+              {city.schedule && (city.schedule.arrival || city.schedule.departure) && (
+                <div className="flex items-start gap-2 rounded-lg bg-muted/60 px-2.5 py-2 text-xs">
+                  <CalendarClock className="mt-0.5 size-3.5 shrink-0 text-accent" />
+                  <div className="space-y-0.5">
+                    {city.schedule.arrival && (
+                      <div>
+                        <span className="font-medium text-foreground">Arrival:</span> {city.schedule.arrival}
+                      </div>
+                    )}
+                    {city.schedule.departure && (
+                      <div>
+                        <span className="font-medium text-foreground">Departure:</span> {city.schedule.departure}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {city.budget && (city.budget.accommodation || city.budget.activities) && (
+                <div className="flex items-start gap-2 rounded-lg bg-muted/60 px-2.5 py-2 text-xs">
+                  <Wallet className="mt-0.5 size-3.5 shrink-0 text-accent" />
+                  <div className="space-y-0.5">
+                    {city.budget.accommodation && (
+                      <div>
+                        <span className="font-medium text-foreground">Stay:</span> {city.budget.accommodation}
+                      </div>
+                    )}
+                    {city.budget.activities && (
+                      <div>
+                        <span className="font-medium text-foreground">Activities:</span> {city.budget.activities}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <Separator className="mt-4" />
 

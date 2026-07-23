@@ -18,6 +18,16 @@ export interface CityStop {
   summary?: string;
   /** Zoom level at which the detailed city panel should appear */
   detailZoom: number;
+  /** Arrival/departure timing for this stop, in human-readable form */
+  schedule?: {
+    arrival?: string;
+    departure?: string;
+  };
+  /** Estimated budget for this stop */
+  budget?: {
+    accommodation?: string;
+    activities?: string;
+  };
   /** Full city details — fill these in later */
   details?: {
     description?: string;
@@ -39,6 +49,9 @@ export const tripStops: CityStop[] = [
     arriveBy: undefined,
     summary: "Departure point — ferry to Palermo, then Civitavecchia",
     detailZoom: 11,
+    schedule: {
+      departure: "Aug 1, 00:00 — ferry departure",
+    },
     details: {},
   },
   {
@@ -51,7 +64,9 @@ export const tripStops: CityStop[] = [
     arriveBy: "ferry",
     summary: "Ferry stopover in Sicily",
     detailZoom: 11,
-    details: {},
+    details: {
+      notes: "Ferry stopover — exact dates not yet confirmed.",
+    },
   },
   {
     id: "civitavecchia",
@@ -63,7 +78,9 @@ export const tripStops: CityStop[] = [
     arriveBy: "ferry",
     summary: "Ferry arrival point, gateway to Rome",
     detailZoom: 11,
-    details: {},
+    details: {
+      notes: "Ferry arrival — continue on to Rome the same day.",
+    },
   },
   {
     id: "rome",
@@ -72,16 +89,23 @@ export const tripStops: CityStop[] = [
     lat: 41.9028,
     lng: 12.4964,
     order: 3,
-    days: 2,
+    days: 3,
     arriveBy: "car",
     exploreBy: "foot",
-    summary: "2 days exploring Rome",
+    summary: "3 days exploring Rome",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 3, 08:00",
+      departure: "Aug 6, afternoon/evening",
+    },
+    budget: {
+      accommodation: "≈€80/night",
+      activities: "≈€70",
+    },
     details: {
       description:
         "Ancient ruins, Renaissance piazzas, and Baroque fountains — the heart of the itinerary.",
-      notes:
-        "Estimated sightseeing cost: €19 (EU students 18–25) / €56 (standard), excluding transport & food. The trip guide suggests 3 days here — currently planned for 2.",
+      notes: "Estimated sightseeing cost: €19 (EU students 18–25) / €56 (standard), excluding transport & food.",
     },
   },
   {
@@ -96,6 +120,14 @@ export const tripStops: CityStop[] = [
     exploreBy: "foot",
     summary: "Renaissance art & architecture",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 6, evening — meeting up with Sana",
+      departure: "Aug 8, early morning",
+    },
+    budget: {
+      accommodation: "€55 for 2 nights",
+      activities: "≈€20",
+    },
     details: {
       description: "Renaissance art and architecture centered on the Duomo and the Arno.",
       notes: "Estimated sightseeing cost: €11 (student) / €19 (standard).",
@@ -113,6 +145,14 @@ export const tripStops: CityStop[] = [
     exploreBy: "foot",
     summary: "Food capital of Italy",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 8, early morning",
+      departure: "Aug 9, morning",
+    },
+    budget: {
+      accommodation: "€27/night",
+      activities: "≈€10",
+    },
     details: {
       description:
         "A compact one-day stop for porticoes, towers, and Italy's oldest university quarter.",
@@ -126,11 +166,19 @@ export const tripStops: CityStop[] = [
     lat: 45.4408,
     lng: 12.3155,
     order: 6,
-    days: 2,
+    days: 1,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Canals and history",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 9, morning",
+      departure: "Aug 10, after lunch",
+    },
+    budget: {
+      accommodation: "€47/night",
+      activities: "≈€70",
+    },
     details: {
       description: "Canals, basilicas, and glassblowing islands across the lagoon.",
       notes: "Estimated sightseeing cost: ≈€36, plus €19 round-trip boat to Murano & Burano.",
@@ -148,6 +196,14 @@ export const tripStops: CityStop[] = [
     exploreBy: "foot",
     summary: "Fashion & design capital",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 10, evening",
+      departure: "Aug 12, morning",
+    },
+    budget: {
+      accommodation: "€70 for 2 nights",
+      activities: "≈€30",
+    },
     details: {
       description: "Fashion, opera, and Gothic spires in Italy's design capital.",
       notes: "Estimated sightseeing cost: ≈€20.5.",
@@ -160,16 +216,23 @@ export const tripStops: CityStop[] = [
     lat: 46.0037,
     lng: 8.9511,
     order: 8,
-    days: 2,
+    days: 1,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "Swiss lakeside city",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 12, morning",
+      departure: "Aug 13, evening",
+    },
+    budget: {
+      accommodation: "€75",
+      activities: "≈€80",
+    },
     details: {
       description:
         "Lakeside old town with mountain viewpoints and a day trip to Bellinzona's castles.",
-      notes:
-        "Estimated activities: ≈45.5 CHF (student) / 71.5 CHF (standard). Accommodation ≈50–60 CHF/person/night — budget ≈105 CHF/person total for 1 night + activities.",
+      notes: "Estimated activities: ≈45.5 CHF (student) / 71.5 CHF (standard).",
     },
   },
   {
@@ -184,6 +247,14 @@ export const tripStops: CityStop[] = [
     exploreBy: "foot",
     summary: "Financial hub of Germany",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 14, morning",
+      departure: "Aug 16 evening or Aug 17 morning",
+    },
+    budget: {
+      accommodation: "≈€70",
+      activities: "≈€60",
+    },
     details: {
       description: "Skyline views, a rebuilt old town, and a cruise along the Main.",
       notes: "Estimated sightseeing cost: ≈€42 (student) / €49 (standard).",
@@ -196,10 +267,15 @@ export const tripStops: CityStop[] = [
     lat: 50.8503,
     lng: 4.3517,
     order: 10,
+    days: 2,
     arriveBy: "car",
     exploreBy: "foot",
     summary: "EU capital",
     detailZoom: 11,
+    schedule: {
+      arrival: "Aug 17, morning",
+      departure: "Aug 19, evening",
+    },
     details: {},
   },
   {
@@ -213,7 +289,9 @@ export const tripStops: CityStop[] = [
     exploreBy: "foot",
     summary: "City of Light",
     detailZoom: 11,
-    details: {},
+    details: {
+      notes: "Dates and accommodation not yet planned.",
+    },
   },
   {
     id: "lyon",
@@ -224,9 +302,11 @@ export const tripStops: CityStop[] = [
     order: 12,
     arriveBy: "car",
     exploreBy: "foot",
-    summary: "Gastronomic capital of France",
+    summary: "Gastronomic capital of France — last stop before flying home",
     detailZoom: 11,
-    details: {},
+    details: {
+      notes: "Last stop of the trip — dates and accommodation not yet planned.",
+    },
   },
   {
     id: "tunis",
